@@ -27,7 +27,7 @@ console.log("Campaign worker started, waiting for jobs...");
 
 import http from "http";
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 4001;
 
 http.createServer((req, res) => {
   res.writeHead(200);
