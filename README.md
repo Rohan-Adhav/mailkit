@@ -1,175 +1,522 @@
-# MailKit
+# MailKit - Email Marketing Platform
 
-A small multi-tenant email marketing app: contacts → audiences → campaigns → send →
-track opens. Built for the take-home brief: Next.js frontend, Express API,
-Postgres, and Redis/BullMQ for scheduled sends.
+MailKit is a lightweight email marketing platform inspired by tools like Mailchimp. It allows users to manage contacts, create audiences, send email campaigns, schedule campaigns, and track email performance through real-time analytics.
 
-## Monorepo layout
+The project follows a monorepo architecture with a separate frontend and backend application.
+
+---
+
+# Features
+
+## Authentication
+
+- User signup and login
+- JWT based authentication
+- Protected API routes
+- Workspace-level data isolation
+
+---
+
+# Contacts Management
+
+Users can manage contacts with:
+
+- Create contacts
+- Update contacts
+- Delete contacts
+- Import contacts using CSV files
+- Duplicate detection
+
+Duplicate detection is performed using:
+
+- Email address
+- Phone number
+
+Import results provide:
+
+- Successfully added contacts
+- Skipped duplicate contacts
+
+---
+
+# Audience Management
+
+Users can create and manage audiences.
+
+Features:
+
+- Create saved audiences
+- Filter contacts dynamically
+- Audience member count
+- Tag-based filtering
+- Contact attribute filtering
+
+---
+
+# Campaign Management
+
+Users can create email campaigns with:
+
+- Campaign name
+- Subject line
+- HTML email content
+
+Recipient selection options:
+
+- Existing audience
+- Contact tags
+- Manual recipient list
+
+Before sending campaigns, users can preview recipients:
+
+- Matched contacts
+- Unmatched recipients
+
+---
+
+# Campaign Scheduling
+
+Scheduled campaigns are handled using a background job queue.
+
+Technologies used:
+
+- Redis
+- BullMQ
+
+Features:
+
+- Delayed campaign execution
+- Background worker processing
+- Jobs survive server restarts
+
+---
+
+# Email Sending & Tracking
+
+MailKit uses Mailgun for email delivery.
+
+Supported email events:
+
+- Sent
+- Delivered
+- Opened
+- Failed
+
+Mailgun webhooks update campaign analytics automatically.
+
+Analytics include:
+
+- Total recipients
+- Sent emails
+- Delivered emails
+- Opened emails
+- Failed emails
+
+Note:
+
+Email open tracking depends on tracking pixels supported by email clients, so open counts may not represent every email open.
+
+---
+
+# Tech Stack
+
+## Frontend
+
+- Next.js
+- React
+- JavaScript
+- CSS
+
+## Backend
+
+- Node.js
+- Express.js
+
+## Database
+
+- PostgreSQL
+
+## Queue System
+
+- Redis
+- BullMQ
+
+## Email Provider
+
+- Mailgun
+
+## Deployment
+
+- Frontend: Vercel
+- Backend: Render
+- Database: Neon PostgreSQL
+- Redis: Upstash Redis
+
+---
+
+# Project Structure
 
 ```
-mailkit/
-  apps/
-    api/            Express API (auth, contacts, audiences, campaigns, webhooks)
-      src/
-        routes/       one file per resource
-        services/     dedupe, CSV parsing, recipient matching, Mailgun client, send logic
-        queue/         BullMQ queue + the worker process that actually sends mail
-        db/            pg pool, migration runner
-      migrations/     plain SQL, applied in order by src/db/migrate.js
-    web/            Next.js (App Router) frontend, talks to the API over fetch + JWT
-  docker-compose.yml  local Postgres + Redis
-  .env.example        every env var the API and web app read
+mailkit
+
+├── apps
+│
+├── api
+│   ├── migrations
+│   │
+│   └── src
+│       ├── db
+│       ├── middleware
+│       ├── queue
+│       ├── routes
+│       └── services
+│
+└── web
+    ├── app
+    │   ├── dashboard
+    │   ├── login
+    │   └── signup
+    │
+    └── lib
 ```
 
-The frontend and backend are fully separate processes (no Next.js API routes
-are used for app logic) so `apps/web` could be deployed to Vercel and
-`apps/api` to a Node host independently, which is how I actually deployed it.
+---
 
-## Running it locally
+# Backend Structure
 
-You'll need Node 18+, and Docker (or your own local Postgres 16 + Redis 7).
+```
+apps/api
+
+src
+│
+├── db
+│   ├── migrate.js
+│   ├── pool.js
+│   └── seed.js
+│
+├── middleware
+│   └── auth.js
+│
+├── queue
+│   ├── campaignQueue.js
+│   ├── connection.js
+│   └── worker.js
+│
+├── routes
+│   ├── auth.js
+│   ├── contacts.js
+│   ├── audiences.js
+│   ├── campaigns.js
+│   └── webhooks.js
+│
+└── services
+    ├── audienceFilter.js
+    ├── dedupe.js
+    ├── mailer.js
+    ├── resolveRecipients.js
+    └── sendCampaign.js
+```
+
+---
+
+# Frontend Structure
+
+```
+apps/web
+
+app
+│
+├── dashboard
+│   ├── audiences
+│   ├── campaigns
+│   │   ├── new
+│   │   └── [id]
+│   │
+│   └── contacts
+│
+├── login
+│
+└── signup
+
+
+lib
+
+└── api.js
+```
+
+---
+
+# Local Development Setup
+
+## Requirements
+
+Install:
+
+- Node.js
+- PostgreSQL
+- Redis
+
+---
+
+# Install Dependencies
+
+From the project root:
 
 ```bash
-# 1. infra
-docker compose up -d
-
-# 2. install deps (npm workspaces, one install for both apps)
 npm install
-
-# 3. env vars
-cp .env.example apps/api/.env
-cp .env.example apps/web/.env.local   # only NEXT_PUBLIC_API_URL matters here
-# then fill in MAILGUN_* and JWT_SECRET in apps/api/.env
-
-# 4. create the schema
-npm run migrate
-
-# 5. run all three processes (separate terminals)
-npm run dev:api      # Express on :4000
-npm run dev:worker   # BullMQ worker -- this is what actually sends scheduled mail
-npm run dev:web      # Next.js on :3000
 ```
 
-Then visit `http://localhost:3000`, sign up (this creates your workspace),
-and go.
+---
 
-### Wiring up Mailgun (free, no domain needed)
+# Environment Variables
 
-1. Create a Mailgun account, use the sandbox domain it gives you for free —
-   no DNS records required.
-2. Under **Sending → Authorized Recipients**, add up to 5 email addresses
-   you control and verify them. Sandbox domains can only send to verified
-   addresses, which is plenty for testing this app.
-3. Copy the sandbox domain and your private API key into `apps/api/.env`
-   (`MAILGUN_DOMAIN`, `MAILGUN_API_KEY`).
-4. Under **Sending → Webhooks**, copy the **HTTP webhook signing key** into
-   `MAILGUN_WEBHOOK_SIGNING_KEY`, and register `delivered` and `opened`
-   webhooks pointing at `https://<your-api-host>/webhooks/mailgun`. Locally,
-   use `ngrok http 4000` and point Mailgun at the ngrok URL to test webhooks
-   before you deploy.
+Create environment variables for the backend.
 
-## Environment variables
+Example:
 
-See `.env.example` for the full annotated list. The short version:
+```
+DATABASE_URL=
 
-| Var | Used by | What it's for |
-|---|---|---|
-| `DATABASE_URL` | api | Postgres connection string |
-| `REDIS_URL` | api, worker | BullMQ's backing store |
-| `JWT_SECRET` | api | signs auth tokens |
-| `CORS_ORIGIN` | api | which frontend origin(s) may call the API |
-| `MAILGUN_*` | api, worker | sending mail + verifying inbound webhooks |
-| `PUBLIC_API_URL` | api | not currently required, kept for reference if you add click-tracking redirects later |
-| `NEXT_PUBLIC_API_URL` | web | where the frontend sends its requests |
+REDIS_URL=
 
-## How the pieces fit together
+JWT_SECRET=
 
-**Account isolation.** Every tenant-owned table (`contacts`, `audiences`,
-`campaigns`, `campaign_recipients`) carries a `workspace_id`. There's no
-Postgres row-level security — the guarantee is enforced in the app layer:
-`requireAuth` decodes the JWT and puts `workspace_id` on `req`, and *every*
-query in `routes/*.js` filters or joins on `req.workspaceId`, taken only from
-the verified token, never from the request body or URL params. I tested this
-by creating two workspaces and confirming account B's token can't read,
-update, or delete account A's contacts/audiences/campaigns (404, not a
-silent empty result, so it doesn't leak existence either).
+PORT=
 
-**Contact dedup.** A contact is a duplicate if it shares an email *or* phone
-with one already in the workspace (checked in `services/dedupe.js`, backed
-by partial unique indexes in the migration as a hard backstop). I chose
-**skip over merge** — new/imported duplicates are dropped, not created, and
-the import endpoint reports counts (`"15 added, 3 skipped as duplicates"`)
-instead of silently discarding anything. The manual "add contact" endpoint
-runs the exact same check and returns a 409 with the existing contact so the
-UI can say "this person's already in here." The bundled `mock-data` style
-CSV (Meera Nair / Sneha Iyer share an email+phone, Dev Malhotra / Priya
-Patel too) is a good test case for this.
+CORS_ORIGIN=
 
-**Custom fields.** Contacts have fixed `name`/`email`/`phone` columns plus a
-`custom_fields jsonb` column for anything else. CSV columns outside the
-fixed three land in there automatically; `tags` is special-cased into a JSON
-array so tag-based audience filters work without extra setup.
+MAILGUN_API_KEY=
+MAILGUN_DOMAIN=
+MAILGUN_FROM=
 
-**Audiences.** A saved filter (`{ "tag": "vip" }` or
-`{ "field": "city", "value": "Mumbai" }`) resolved to SQL in
-`services/audienceFilter.js`, reused both for the audiences list's live
-member counts and for resolving campaign recipients — one code path, so the
-"members" count you see when picking an audience is exactly who gets
-emailed.
+MAILGUN_WEBHOOK_SIGNING_KEY=
 
-**Campaign recipients — two entry paths.** Picking an audience/tag resolves
-against contacts at campaign-creation time and freezes the list into
-`campaign_recipients` (so the list a user reviewed doesn't quietly shift if
-they edit a contact afterwards). Pasting a block of emails/phones runs each
-line against saved contacts, attaches the matched name for the sanity-check
-UI, and flags anything unmatched rather than dropping it — those flagged
-rows are excluded from sending, not silently emailed with no context.
+PUBLIC_API_URL=
 
-**Scheduling.** `POST /campaigns/:id/schedule` computes a delay and adds a
-delayed BullMQ job (`queue/campaignQueue.js`) with the campaign id as the
-job id, keyed to Redis. This is deliberately not a `setTimeout` or a
-polling loop over the table: the job lives in Redis (with AOF persistence
-turned on in `docker-compose.yml`), so if the API or the worker process
-restarts, the delayed job is still there when the worker comes back up and
-fires at the right time — nothing needs to be re-derived from wall-clock
-math on restart. "Send now" goes through the exact same queue with a delay
-of 0, so there's one send code path (`services/sendCampaign.js`), not two.
+NEXT_PUBLIC_API_URL=
+```
 
-**Analytics.** Mailgun webhooks (`routes/webhooks.js`, signature-verified)
-update `campaign_recipients.status` by matching Mailgun's message id back to
-the row `sendCampaign.js` stored when it sent. The campaign detail page
-polls `GET /campaigns/:id/analytics` every 4 seconds, which just counts
-`campaign_recipients` grouped by status — no separate aggregate table to
-keep in sync, the count is always derived fresh from source of truth.
+---
 
-## Trade-offs / what I'd do differently with more time
+# Database Setup
 
-- **No automated tests.** For a project this size I'd normally add a handful
-  of integration tests around the isolation boundary and the dedup logic
-  specifically, since those are the two things silent bugs would hurt most.
-  I verified both by hand instead.
-- **Plain JS, not TypeScript**, on the API to keep the take-home's surface
-  area smaller to review. I'd reach for TS on a real team project.
-- **No rate limiting / no email verification flow** on signup — out of scope
-  for a 3-day take-home but not something I'd skip on a real product.
-- **CSV import buffers the whole file** in memory via multer; fine at
-  contact-list sizes here, but a truly large import would want streaming
-  parse + chunked inserts.
-- **Extra credit:** campaign duplication is implemented
-  (`POST /campaigns/:id/duplicate`). PDF/file attachments on outgoing email
-  are **not** implemented — I prioritized getting the required scheduling +
-  webhook + isolation pieces solid over the stretch goals.
-- **Open-tracking is Mailgun's own pixel**, so per the brief's own caveat,
-  it undercounts opens on clients that block tracking pixels; the UI notes
-  this rather than presenting it as exact.
+Run migrations:
 
-## Deploying
+```bash
+npm run migrate
+```
 
-- **Web**: Vercel, root directory `apps/web`, env var `NEXT_PUBLIC_API_URL`
-  pointing at the deployed API.
-- **API + worker**: Railway or Render, two services from `apps/api` — one
-  running `npm start` (the HTTP server), one running `npm run worker:start`
-  (the BullMQ consumer) — plus a managed Postgres and Redis add-on. Run
-  `npm run migrate` once against the production `DATABASE_URL` before first
-  boot. Make sure the Redis add-on has persistence enabled, since that's
-  what makes scheduled sends survive a restart.
+Optional seed data:
+
+```bash
+npm run seed
+```
+
+---
+
+# Running The Application
+
+## Start Backend API
+
+```bash
+npm run dev:api
+```
+
+Backend runs on:
+
+```
+http://localhost:4000
+```
+
+---
+
+## Start Background Worker
+
+```bash
+npm run dev:worker
+```
+
+Worker handles:
+
+- Scheduled campaigns
+- Queue processing
+
+---
+
+## Start Frontend
+
+```bash
+npm run dev:web
+```
+
+Frontend runs on:
+
+```
+http://localhost:3000
+```
+
+---
+
+# API Architecture
+
+The backend exposes:
+
+```
+/api/auth
+/api/contacts
+/api/audiences
+/api/campaigns
+/webhooks
+```
+
+---
+
+# Design Decisions
+
+## Duplicate Handling
+
+Contacts are normalized and checked before insertion.
+
+This prevents duplicate records using:
+
+- Email
+- Phone number
+
+---
+
+## Queue Based Scheduling
+
+BullMQ was selected instead of cron jobs because:
+
+- Jobs persist after server restart
+- Better retry handling
+- Reliable background execution
+
+---
+
+## Webhook Based Analytics
+
+Mailgun webhooks are used instead of checking email status manually.
+
+Benefits:
+
+- Real-time updates
+- Less API polling
+- Accurate delivery events
+
+---
+
+## Frontend Analytics Refresh
+
+Campaign analytics automatically refresh periodically to provide near real-time updates without requiring manual page refresh.
+
+---
+
+# Deployment Architecture
+
+```
+                Users
+
+                  |
+                  |
+
+              Vercel
+          Next.js Frontend
+
+                  |
+                  |
+
+             Render API
+          Express Backend
+
+                  |
+        --------------------
+
+        PostgreSQL     Redis
+
+          Neon       Upstash
+
+
+                  |
+
+              Mailgun
+
+          Email Delivery
+          Webhooks
+```
+
+---
+
+# Production Deployment Steps
+
+## Frontend
+
+Deploy using:
+
+- Vercel
+
+Environment:
+
+```
+NEXT_PUBLIC_API_URL=<production-api-url>
+```
+
+---
+
+## Backend
+
+Deploy using:
+
+- Render Web Service
+
+Required environment variables:
+
+```
+DATABASE_URL
+REDIS_URL
+JWT_SECRET
+
+MAILGUN_API_KEY
+MAILGUN_DOMAIN
+MAILGUN_FROM
+
+MAILGUN_WEBHOOK_SIGNING_KEY
+
+PUBLIC_API_URL
+CORS_ORIGIN
+```
+
+---
+
+## Worker
+
+Deploy as:
+
+- Render Background Worker
+
+Uses the same backend environment variables.
+
+---
+
+# Future Improvements
+
+Possible enhancements:
+
+- Email templates
+- Rich text editor
+- Campaign attachments
+- Advanced audience filters
+- Better analytics dashboards
+- Retry failed emails
+- Multiple email providers
+- Role based permissions
+
+---
+
+# Author
+
+Rohan Adhav
+
+GitHub:
+
+https://github.com/Rohan-Adhav
