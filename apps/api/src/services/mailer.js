@@ -17,7 +17,13 @@ export async function sendEmail({ to, subject, html }) {
     from: process.env.MAILGUN_FROM,
     to: [to],
     subject,
-    html,
+    html: `
+    <html>
+      <body style="font-family: Arial, sans-serif;">
+        ${html}
+      </body>
+    </html>
+    `,
     // Mailgun tracks opens automatically for sandbox/verified domains once
     // tracking is turned on for the domain; o:tracking-opens makes it explicit
     // per-message so it doesn't depend on a dashboard toggle.
