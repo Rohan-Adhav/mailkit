@@ -24,3 +24,14 @@ worker.on("failed", (job, err) => {
 });
 
 console.log("Campaign worker started, waiting for jobs...");
+
+import http from "http";
+
+const PORT = process.env.PORT || 10000;
+
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("Worker is running");
+}).listen(PORT, () => {
+  console.log(`Worker health server running on port ${PORT}`);
+});
