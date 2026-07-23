@@ -1,0 +1,32 @@
+{
+  "name": "@mailkit/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --watch src src/index.js",
+    "start": "node src/index.js",
+    "worker": "nodemon --watch src src/queue/worker.js",
+    "worker:start": "node src/queue/worker.js",
+    "migrate": "node src/db/migrate.js",
+    "seed": "node src/db/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.7.8",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "mailgun.js": "^10.2.1",
+    "form-data": "^4.0.0",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.11.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

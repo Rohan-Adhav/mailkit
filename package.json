@@ -1,0 +1,18 @@
+{
+  "name": "mailkit",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:worker": "npm run worker --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "migrate": "npm run migrate --workspace apps/api",
+    "seed": "npm run seed --workspace apps/api"
+  },
+  "dependencies": {
+    "ngrok": "^5.0.0-beta.2"
+  }
+}
